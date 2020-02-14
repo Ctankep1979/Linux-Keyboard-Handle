@@ -2,10 +2,18 @@
 
 namespace Ctankep
 {
-
-    Keyboard::Keyboard(const char* path)
+    Keyboard::~Keyboard()
     {
-        
+        if(_file.is_open())
+        {
+            _file.close();
+        }
+    }
+
+    Keyboard::Keyboard(const char* path) 
+    {
+        _keyhold = KEYSTATE::KEYUP;
+        _keyholdvalue = -2;
         try
         {
             _file.open(path);
@@ -43,7 +51,6 @@ namespace Ctankep
     int Keyboard::keyPress()
     {
         KEYSTATE _STATE = KEYSTATE::KEYUP;
-        int key = 0;
         int value = -2;
 
         if(init())
@@ -72,25 +79,16 @@ namespace Ctankep
             case KEYSTATE::KEYDOWN:
                 if(_event.value == 1)
                 {
-                    _STATE = KEYSTATE::KEYPRESS;
-                    init();
-                } else
-                {
-                    return -2;
-                }
-                break;
 
-            case KEYSTATE::KEYPRESS:
-                if(_event.value == 0)
-                {
                     return value;
+
                 } else
                 {
                     return -2;
                 }
                 break;
-            
             default:
+                return -2;
                 break;
             }
         }
@@ -101,7 +99,6 @@ namespace Ctankep
     int Keyboard::keyRelease()
     {
         KEYSTATE _STATE = KEYSTATE::KEYUP;
-        int key = 0;
         int value = -2;
 
         if(init())
@@ -121,10 +118,6 @@ namespace Ctankep
                 {
                     _STATE = KEYSTATE::KEYDOWN;
                     init();
-                } else if (_event.value == 2)
-                {
-                    _STATE = KEYSTATE::KEYPRESS;
-                    init();
                 } else
                 {
                     return -2;
@@ -132,40 +125,11 @@ namespace Ctankep
                 break;
 
             case KEYSTATE::KEYDOWN:
-                if(_event.value == 1)
-                {
-                    _STATE = KEYSTATE::KEYPRESS;
-                    init();
-                } else if (_event.value == 0)
-                {
-                    _STATE = KEYSTATE::KEYRELEASE;
-                    init();
-                } else
-                {
-                    return -2;
-                }
-                break;
-
-            case KEYSTATE::KEYPRESS:
-                if(_event.value == 0)
-                {
-                    _STATE = KEYSTATE::KEYUP;
-                    init();
-                } else if(_event.value == 1)
-                {
-                    _STATE = KEYSTATE::KEYUP;
-                    init();
-                } else
-                {
-                    return -2;
-                }
-                break;
-
-            case KEYSTATE::KEYRELEASE:
                 if(_event.value == 0)
                 {
                     return value;
-                } else
+
+                 } else
                 {
                     return -2;
                 }
@@ -177,6 +141,82 @@ namespace Ctankep
         }
 
         return -2;
+    }
+
+    int Keyboard::keyHold()
+    {
+
+        KEYSTATE _STATE = KEYSTATE::KEYUP;
+        int value = -2;
+
+        if(_keyhold == KEYSTATE::KEYHOLD)
+        {
+            _STATE = KEYSTATE::KEYHOLD;
+        }
+
+        if(init())
+        {
+            value = _keymap.keyCode.at(static_cast<int>(_event.value));
+        } else
+        {
+            return -2;
+        }
+
+        while(1)
+        {
+            switch (_STATE)
+            {
+            case KEYSTATE::KEYUP:
+                _keyhold = KEYSTATE::KEYUP;
+                if(_event.value > 2)
+                {
+                    _STATE = KEYSTATE::KEYDOWN;
+                    _keyholdvalue = value;
+                    init();
+                } else
+                {
+                    _keyholdvalue = -2;
+                    return -2;
+                }
+                break;
+            case KEYSTATE::KEYDOWN:
+                if(_event.value == 1)
+                {
+                    _STATE = KEYSTATE::KEYDOWN;
+                    init();
+                } else if(_event.value == 0)
+                {
+                    _STATE = KEYSTATE::KEYHOLD;
+                    init();
+                } else
+                {
+                    _keyholdvalue = -2;
+                    return -2;
+                }
+                break;
+
+            case KEYSTATE::KEYHOLD:
+                if(_event.value == 2 || _event.value == 1)
+                {
+                    _keyhold = KEYSTATE::KEYHOLD;
+                    return _keyholdvalue;
+                } else
+                {
+                    _keyhold = KEYSTATE::KEYUP;
+                    _keyholdvalue = -2;
+                    return -2;
+                }
+                break;
+
+            default:
+                _keyholdvalue = -2;
+                return -2;
+                break;
+            }
+        }
+
+        return -2;
+
     }
 
     
